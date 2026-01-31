@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .test-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+        
+        /* CRITICAL FIX: Ensure wrapper can be wider than container */
+        .test-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        
+        .sections-wrapper {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            overflow-x: scroll;
+            overflow-y: hidden;
+            scroll-behavior: smooth;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .test-section {
+            min-width: 100vw;
+            width: 100vw;
+            height: 100vh;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .test-section:nth-child(1) { background: #e74c3c; }
+        .test-section:nth-child(2) { background: #3498db; }
+        .test-section:nth-child(3) { background: #2ecc71; }
+        .test-section:nth-child(4) { background: #f39c12; }
+        .test-section:nth-child(5) { background: #9b59b6; }
+        .test-section:nth-child(6) { background: #1abc9c; }
+        
+        .nav-controls {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-controls button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: white;
+            color: black;
+        }
+        
+        .nav-controls button:hover {
+            background: #ddd;
+        }
+        
+        .info-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+        
+        .info-panel div {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="nav-controls">
+            <button onclick="testScroll(0)">Section 1</button>
+            <button onclick="testScroll(1)">Section 2</button>
+            <button onclick="testScroll(2)">Section 3</button>
+            <button onclick="testScroll(3)">Section 4</button>
+            <button onclick="testScroll(4)">Section 5</button>
+            <button onclick="testScroll(5)">Section 6</button>
+        </div>
+        
+        <div class="sections-wrapper" id="wrapper">
+            <div class="test-section">SECTION 1</div>
+            <div class="test-section">SECTION 2</div>
+            <div class="test-section">SECTION 3</div>
+            <div class="test-section">SECTION 4</div>
+            <div class="test-section">SECTION 5</div>
+            <div class="test-section">SECTION 6</div>
+        </div>
+        
+        <div class="info-panel" id="info">
+            <div>Loading...</div>
+        </div>
+    </div>
+    
+    <script>
+        const wrapper = document.getElementById('wrapper');
+        const infoPanel = document.getElementById('info');
+        
+        // CRITICAL FIX: Wrapper should be VIEWPORT width, content should be WIDER
+        const sections = wrapper.querySelectorAll('.test-section');
+        const viewportWidth = window.innerWidth;
+        
+        // Make wrapper exactly viewport width
+        wrapper.style.width = viewportWidth + 'px';
+        wrapper.style.maxWidth = viewportWidth + 'px';
+        
+        console.log('Viewport width:', viewportWidth);
+        console.log('Sections count:', sections.length);
+        console.log('Expected scrollWidth:', viewportWidth * sections.length);
+        
+        setTimeout(() => {
+            console.log('Wrapper width:', wrapper.offsetWidth);
+            console.log('Wrapper scrollWidth:', wrapper.scrollWidth);
+            console.log('Ratio:', (wrapper.scrollWidth / wrapper.clientWidth).toFixed(2));
+            
+            alert('FIXED: wrapperWidth=' + wrapper.offsetWidth + 'px, scrollWidth=' + wrapper.scrollWidth + 'px, ratio=' + (wrapper.scrollWidth / wrapper.clientWidth).toFixed(2));
+        }, 100);
+        
+        function updateInfo() {
+            const info = {
+                scrollWidth: wrapper.scrollWidth,
+                clientWidth: wrapper.clientWidth,
+                scrollLeft: wrapper.scrollLeft,
+                currentSection: Math.round(wrapper.scrollLeft / window.innerWidth),
+                overflowX: getComputedStyle(wrapper).overflowX,
+                display: getComputedStyle(wrapper).display,
+                width: getComputedStyle(wrapper).width
+            };
+            
+            infoPanel.innerHTML = `
+                <div><strong>TEST RESULTS:</strong></div>
+                <div>scrollWidth: ${info.scrollWidth}px</div>
+                <div>clientWidth: ${info.clientWidth}px</div>
+                <div>scrollLeft: ${info.scrollLeft}px</div>
+                <div>currentSection: ${info.currentSection}</div>
+                <div>overflowX: ${info.overflowX}</div>
+                <div>display: ${info.display}</div>
+                <div>width: ${info.width}</div>
+                <div style="margin-top:10px;color:#0f0"><strong>Ratio: ${(info.scrollWidth / info.clientWidth).toFixed(2)}</strong></div>
+                <div style="color:${info.scrollWidth > info.clientWidth ? '#0f0' : '#f00'}">
+                    ${info.scrollWidth > info.clientWidth ? '✓ Scroll POSSIBLE' : '✗ Scroll IMPOSSIBLE'}
+                </div>
+            `;
+        }
+        
+        function testScroll(index) {
+            const target = index * window.innerWidth;
+            console.log('Scrolling to index:', index, 'target:', target);
+            
+            wrapper.scrollTo({
+                left: target,
+                behavior: 'smooth'
+            });
+            
+            setTimeout(updateInfo, 500);
+        }
+        
+        wrapper.addEventListener('scroll', updateInfo);
+        
+        // Initial update
+        setTimeout(updateInfo, 100);
+        
+        // Test on load
+        console.log('Test page loaded');
+        console.log('Wrapper element:', wrapper);
+        console.log('ScrollWidth:', wrapper.scrollWidth);
+        console.log('ClientWidth:', wrapper.clientWidth);
+    </script>
+</body>
+</html>

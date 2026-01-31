@@ -1,0 +1,671 @@
+// ============================================
+// CV Website Scroll Routing Logic
+// ============================================
+
+// Get DOM elements
+const sectionsWrapper = document.querySelector('.sections-wrapper');
+const sections = document.querySelectorAll('.cv-section');
+const sectionContents = document.querySelectorAll('.section-content');
+const navButtons = document.querySelectorAll('.nav-button');
+const langButtons = document.querySelectorAll('.lang-button');
+
+// CRITICAL FIX: Force wrapper to viewport width so content can overflow
+if (sectionsWrapper && sections.length > 0) {
+    const viewportWidth = window.innerWidth;
+    sectionsWrapper.style.width = viewportWidth + 'px';
+    sectionsWrapper.style.maxWidth = viewportWidth + 'px';
+    
+    console.log('[HORIZONTAL SCROLL FIX]', {
+        viewportWidth: viewportWidth,
+        sectionsCount: sections.length,
+        expectedScrollWidth: viewportWidth * sections.length
+    });
+}
+
+// #region agent log
+fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:11',message:'DOM elements queried',data:{sectionsWrapper:!!sectionsWrapper,sectionsCount:sections.length,sectionContentsCount:sectionContents.length,navButtonsCount:navButtons.length,langButtonsCount:langButtons.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+// #endregion
+
+/** Tolerance for vertical scroll boundary detection (rounding, padding, image loading) */
+const SCROLL_TOLERANCE = 8;
+
+// ============================================
+// Mobile Detection
+// ============================================
+
+/**
+ * Detects if the current device is mobile (based on viewport width)
+ * @returns {boolean} True if mobile device
+ */
+function isMobile() {
+    return window.innerWidth <= 768;
+}
+
+/**
+ * Checks if user prefers reduced motion
+ * @returns {boolean} True if reduced motion is preferred
+ */
+function prefersReducedMotion() {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// ============================================
+// Stage 1: Detect Currently Active Section
+// ============================================
+
+/**
+ * Determines which section is currently visible/active based on scroll position
+ * @returns {number} Index of the active section (0-5)
+ */
+function getCurrentSection() {
+    const scrollLeft = sectionsWrapper.scrollLeft;
+    const viewportWidth = window.innerWidth;
+    
+    // Calculate which section is currently in view
+    // Each section is 100vw wide, so we divide scroll position by viewport width
+    const sectionIndex = Math.round(scrollLeft / viewportWidth);
+    
+    // Clamp to valid range (0 to sections.length - 1)
+    return Math.max(0, Math.min(sectionIndex, sections.length - 1));
+}
+
+/**
+ * Gets the section-content element for the currently active section
+ * @returns {HTMLElement|null} The section-content element or null
+ */
+function getCurrentSectionContent() {
+    const currentIndex = getCurrentSection();
+    return sectionContents[currentIndex] || null;
+}
+
+// ============================================
+// Stage 2: Check Vertical Scroll Capability
+// ============================================
+
+/**
+ * Checks if the current section's content can scroll vertically
+ * @param {HTMLElement} sectionContent - The section-content element to check
+ * @returns {boolean} True if content can scroll vertically
+ */
+function canScrollVertically(sectionContent) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:66',message:'canScrollVertically entry',data:{hasSectionContent:!!sectionContent,className:sectionContent?.className},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6',runId:'pre-fix'})}).catch(()=>{});
+    // #endregion
+    if (!sectionContent) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:70',message:'canScrollVertically: sectionContent is null',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3',runId:'run2'})}).catch(()=>{});
+        // #endregion
+        return false;
+    }
+    
+    // Content can scroll only if there is real overflow (tolerance of 2px)
+    const canScroll = sectionContent.scrollHeight > sectionContent.clientHeight + 2;
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:80',message:'canScrollVertically check',data:{scrollHeight:sectionContent.scrollHeight,clientHeight:sectionContent.clientHeight,canScroll:canScroll,classList:sectionContent.className},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3',runId:'run2'})}).catch(()=>{});
+    // #endregion
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:82',message:'canScrollVertically exit',data:{scrollHeight:sectionContent.scrollHeight,clientHeight:sectionContent.clientHeight,delta:sectionContent.scrollHeight-sectionContent.clientHeight,canScroll:canScroll},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6',runId:'pre-fix'})}).catch(()=>{});
+    // #endregion
+    return canScroll;
+}
+
+/**
+ * Checks if vertical scroll is at the top boundary
+ * @param {HTMLElement} sectionContent - The section-content element to check
+ * @returns {boolean} True if scrolled to top
+ */
+function isAtTop(sectionContent) {
+    if (!sectionContent) return true;
+    return sectionContent.scrollTop <= SCROLL_TOLERANCE;
+}
+
+/**
+ * Checks if vertical scroll is at the bottom boundary
+ * @param {HTMLElement} sectionContent - The section-content element to check
+ * @returns {boolean} True if scrolled to bottom
+ */
+function isAtBottom(sectionContent) {
+    if (!sectionContent) return true;
+    
+    const { scrollTop, scrollHeight, clientHeight } = sectionContent;
+    return scrollTop + clientHeight >= scrollHeight - SCROLL_TOLERANCE;
+}
+
+// ============================================
+// Stage 3: Route Mouse Wheel Events
+// ============================================
+
+/**
+ * Handles mouse wheel events with vertical-first priority
+ * @param {WheelEvent} event - The wheel event
+ */
+function handleWheelEvent(event) {
+    console.log('[SCROLL ENTER]', { target: event.target.className || event.target.tagName });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:108',message:'handleWheelEvent called',data:{deltaY:event.deltaY,isMobile:isMobile(),targetTagName:event.target.tagName,targetClass:event.target.className},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3',runId:'run2'})}).catch(()=>{});
+    // #endregion
+    
+    // Disable custom scroll routing on mobile
+    if (isMobile()) {
+        return; // Let browser handle scrolling naturally
+    }
+    
+    // Whitelist: only handle scroll when target is inside .section-content (exclude language-switcher, nav, fixed UI)
+    const targetContent = event.target.closest('.section-content');
+    if (!targetContent) {
+        console.log('[SCROLL SKIP]', 'Not inside section-content');
+        return; // Not inside a section-content, allow native scroll
+    }
+    
+    const currentIndex = getCurrentSection();
+    const currentSectionContent = targetContent || getCurrentSectionContent();
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:127',message:'Target content resolved',data:{foundTargetContent:!!targetContent,foundCurrentSectionContent:!!currentSectionContent,currentIndex:currentIndex},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3',runId:'run2'})}).catch(()=>{});
+    // #endregion
+    
+    // Check if current section can scroll vertically
+    const canScroll = canScrollVertically(currentSectionContent);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:141',message:'handleWheelEvent canScroll result',data:{canScroll:canScroll,scrollHeight:currentSectionContent?.scrollHeight,clientHeight:currentSectionContent?.clientHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6',runId:'pre-fix'})}).catch(()=>{});
+    // #endregion
+    
+    if (canScroll && currentSectionContent) {
+        // Stage 3a: Vertical scrolling is possible
+        const deltaY = event.deltaY;
+        const isScrollingUp = deltaY < 0;
+        const isScrollingDown = deltaY > 0;
+        
+        // Check current scroll position
+        const atTop = isAtTop(currentSectionContent);
+        const atBottom = isAtBottom(currentSectionContent);
+        
+        // Hide scroll hint when vertical scrolling starts
+        if (!atTop || isScrollingDown) {
+            hideScrollHint(currentIndex);
+        }
+        
+        // Stage 3b: Route based on scroll boundaries
+        if (isScrollingUp && atTop) {
+            console.log('[SCROLL HORIZONTAL]', 'prev');
+            // At top, scrolling up → navigate to previous section
+            navigateToPreviousSection();
+            event.preventDefault();
+        } else if (isScrollingDown && atBottom) {
+            console.log('[SCROLL HORIZONTAL]', 'next');
+            // At bottom, scrolling down → navigate to next section
+            navigateToNextSection();
+            event.preventDefault();
+        } else {
+            console.log('[SCROLL VERTICAL]');
+            // Within scrollable range → allow default vertical scroll
+            return;
+        }
+    } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:159',message:'No vertical scroll - horizontal nav',data:{canScroll:false,deltaY:event.deltaY},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
+        
+        // Stage 3c: No vertical scroll possible → navigate horizontally
+        const deltaY = event.deltaY;
+        
+        if (deltaY < 0) {
+            console.log('[SCROLL HORIZONTAL]', 'prev');
+            // Scrolling up → previous section
+            navigateToPreviousSection();
+            event.preventDefault();
+        } else if (deltaY > 0) {
+            console.log('[SCROLL HORIZONTAL]', 'next');
+            // Scrolling down → next section
+            navigateToNextSection();
+            event.preventDefault();
+        }
+        // If deltaY === 0, allow default (no preventDefault)
+    }
+}
+
+// ============================================
+// Stage 4: Horizontal Navigation Functions
+// ============================================
+
+/**
+ * Navigates to the next section horizontally
+ */
+function navigateToNextSection() {
+    const currentIndex = getCurrentSection();
+    const nextIndex = Math.min(currentIndex + 1, sections.length - 1);
+    
+    if (nextIndex !== currentIndex) {
+        scrollToSection(nextIndex);
+    }
+}
+
+/**
+ * Navigates to the previous section horizontally
+ */
+function navigateToPreviousSection() {
+    const currentIndex = getCurrentSection();
+    const prevIndex = Math.max(currentIndex - 1, 0);
+    
+    if (prevIndex !== currentIndex) {
+        scrollToSection(prevIndex);
+    }
+}
+
+/**
+ * Scrolls to a specific section by index
+ * @param {number} index - Section index (0-5)
+ */
+function scrollToSection(index) {
+    // Don't use custom scrolling on mobile
+    if (isMobile()) {
+        console.log('[SCROLLTO] Skipped: mobile mode');
+        return;
+    }
+    
+    const viewportWidth = window.innerWidth;
+    const targetScrollLeft = index * viewportWidth;
+    
+    console.log('[SCROLLTO]', {
+        index: index,
+        viewportWidth: viewportWidth,
+        targetScrollLeft: targetScrollLeft,
+        currentScrollLeft: sectionsWrapper.scrollLeft
+    });
+    
+    // Respect reduced motion preference
+    const scrollBehavior = prefersReducedMotion() ? 'auto' : 'smooth';
+    
+    sectionsWrapper.scrollTo({
+        left: targetScrollLeft,
+        behavior: scrollBehavior
+    });
+    
+    // Verify after scroll
+    setTimeout(() => {
+        console.log('[SCROLLTO RESULT]', {
+            actualScrollLeft: sectionsWrapper.scrollLeft,
+            success: Math.abs(sectionsWrapper.scrollLeft - targetScrollLeft) < 10
+        });
+    }, 600);
+}
+
+// ============================================
+// Stage 5: Active Section Highlighting
+// ============================================
+
+/**
+ * Updates the active state of navigation buttons based on current section
+ */
+function updateActiveSection() {
+    const currentIndex = getCurrentSection();
+    
+    navButtons.forEach((button, index) => {
+        if (index === currentIndex) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+}
+
+// ============================================
+// Stage 6: Scroll Hint Management
+// ============================================
+
+/**
+ * Creates and adds scroll hints to sections that have scrollable content
+ */
+function initScrollHints() {
+    requestAnimationFrame(() => {
+        sectionContents.forEach((content, index) => {
+            // Only add hint if content can scroll vertically
+            if (content.scrollHeight > content.clientHeight) {
+                const hint = document.createElement('div');
+                hint.className = 'scroll-hint';
+                // Create bilingual hint content
+                const trHint = document.createElement('span');
+                trHint.setAttribute('data-lang', 'tr');
+                trHint.textContent = 'Detaylar için kaydır ↓';
+                const enHint = document.createElement('span');
+                enHint.setAttribute('data-lang', 'en');
+                enHint.style.display = 'none';
+                enHint.textContent = 'Scroll for details ↓';
+                hint.appendChild(trHint);
+                hint.appendChild(enHint);
+                sections[index].appendChild(hint);
+            }
+        });
+    });
+}
+
+/**
+ * Hides scroll hint for a specific section
+ * @param {number} sectionIndex - Index of the section
+ */
+function hideScrollHint(sectionIndex) {
+    const section = sections[sectionIndex];
+    const hint = section.querySelector('.scroll-hint');
+    if (hint) {
+        hint.classList.add('hidden');
+    }
+}
+
+/**
+ * Shows scroll hint for a specific section (if it exists)
+ * @param {number} sectionIndex - Index of the section
+ */
+function showScrollHint(sectionIndex) {
+    const section = sections[sectionIndex];
+    const hint = section.querySelector('.scroll-hint');
+    if (hint) {
+        // Only show if at top of section
+        const content = sectionContents[sectionIndex];
+        if (content && isAtTop(content)) {
+            hint.classList.remove('hidden');
+        }
+    }
+}
+
+// ============================================
+// Initialize Event Listeners
+// ============================================
+
+/**
+ * Handles scroll events on section content to hide hints
+ */
+function handleSectionContentScroll(event) {
+    const sectionContent = event.target;
+    const sectionIndex = Array.from(sectionContents).indexOf(sectionContent);
+    
+    if (sectionIndex !== -1) {
+        // Hide hint when user starts scrolling
+        if (sectionContent.scrollTop > 0) {
+            hideScrollHint(sectionIndex);
+        } else {
+            // Show hint again if scrolled back to top
+            showScrollHint(sectionIndex);
+        }
+    }
+}
+
+/**
+ * Handles horizontal scroll to update active section
+ */
+function handleHorizontalScroll() {
+    // Skip on mobile (no horizontal scrolling)
+    if (isMobile()) {
+        return;
+    }
+    
+    updateActiveSection();
+    
+    // Show scroll hint for new section if at top
+    const currentIndex = getCurrentSection();
+    showScrollHint(currentIndex);
+}
+
+/**
+ * Initializes scroll event handlers
+ */
+function initScrollHandlers() {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:334',message:'initScrollHandlers called',data:{isMobile:isMobile(),windowWidth:window.innerWidth},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    
+    // Only initialize custom scroll routing on desktop
+    if (!isMobile()) {
+        // Listen for wheel events on the sections wrapper
+        sectionsWrapper.addEventListener('wheel', handleWheelEvent, { passive: false });
+        
+        // Listen for horizontal scroll to update active section
+        sectionsWrapper.addEventListener('scroll', handleHorizontalScroll);
+        
+        // Initialize scroll hints
+        initScrollHints();
+        
+        // Set initial active section
+        updateActiveSection();
+        
+        // Add click handlers to navigation buttons
+        navButtons.forEach((button, index) => {
+            button.addEventListener('click', () => {
+                const targetSection = parseInt(button.dataset.section) || index;
+                console.log('[NAV CLICK]', {
+                    buttonIndex: index,
+                    dataSection: button.dataset.section,
+                    targetSection: targetSection,
+                    isMobile: isMobile()
+                });
+                scrollToSection(targetSection);
+            });
+        });
+    }
+    
+    // Listen for vertical scroll on each section content to hide hints (works on both mobile and desktop)
+    sectionContents.forEach(content => {
+        content.addEventListener('scroll', handleSectionContentScroll);
+    });
+    
+    // Handle window resize to reinitialize if switching between mobile/desktop
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            // Reinitialize handlers if switching between mobile/desktop
+            if (!isMobile()) {
+                updateActiveSection();
+            }
+        }, 250);
+    });
+}
+
+// ============================================
+// Language System (TR/EN)
+// ============================================
+
+/**
+ * Gets the current language preference from localStorage
+ * Turkish is always default on first visit; browser detection is disabled
+ * @returns {string} Language code ('tr' or 'en')
+ */
+function getLanguagePreference() {
+    const savedLang = localStorage.getItem('lang');
+    if (savedLang === 'tr' || savedLang === 'en') {
+        return savedLang;
+    }
+    return 'tr'; // Default on first visit
+}
+
+/**
+ * Saves language preference to localStorage
+ * @param {string} lang - Language code ('tr' or 'en')
+ */
+function saveLanguagePreference(lang) {
+    localStorage.setItem('lang', lang);
+}
+
+/**
+ * Switches the displayed language
+ * @param {string} lang - Language code ('tr' or 'en')
+ */
+function switchLanguage(lang) {
+    console.log('[LANG SWITCH ENTRY]', { lang, langButtonsCount: langButtons.length, buttons: Array.from(langButtons).map(b => ({ dataLang: b.dataset.lang, innerText: b.innerText, display: b.style.display })) });
+    
+    // Save preference (overrides auto-detection)
+    saveLanguagePreference(lang);
+    
+    // Update language switcher: show only the OTHER language (click to switch to it)
+    langButtons.forEach(button => {
+        const beforeText = button.innerText;
+        const beforeDisplay = button.style.display;
+        if (button.dataset.lang === lang) {
+            button.style.display = 'none'; // Hide current language
+        } else {
+            button.style.display = '';
+            button.classList.add('active'); // Show other language as the switch button
+        }
+        console.log('[LANG SWITCH BUTTON]', { dataLang: button.dataset.lang, beforeText, afterText: button.innerText, beforeDisplay, afterDisplay: button.style.display });
+    });
+    
+    // Update HTML lang attribute
+    document.documentElement.lang = lang;
+    
+    // Update page title
+    document.title = lang === 'tr' ? 'Kişisel CV' : 'Personal CV';
+    
+    // Show/hide content blocks based on language (exclude lang buttons - they use dedicated logic above)
+    const allLangBlocks = document.querySelectorAll('[data-lang]');
+    const langButtonElements = Array.from(allLangBlocks).filter(b => b.classList && b.classList.contains('lang-button'));
+    console.log('[LANG BLOCKS BEFORE]', { lang, allLangBlocksCount: allLangBlocks.length, langButtonElementsCount: langButtonElements.length, langButtonStates: langButtonElements.map(b => ({ dataLang: b.dataset.lang, innerText: b.innerText, display: b.style.display })) });
+    allLangBlocks.forEach(block => {
+        if (block.classList && block.classList.contains('lang-button')) return; // Skip language switcher buttons
+        if (block.dataset.lang === lang) {
+            block.style.display = '';
+        } else {
+            block.style.display = 'none';
+        }
+    });
+    console.log('[LANG BLOCKS AFTER]', { lang, langButtonStates: langButtonElements.map(b => ({ dataLang: b.dataset.lang, innerText: b.innerText, display: b.style.display })) });
+    
+    // Update navigation button text
+    navButtons.forEach(button => {
+        const trText = button.dataset.langTr;
+        const enText = button.dataset.langEn;
+        if (trText && enText) {
+            button.textContent = lang === 'tr' ? trText : enText;
+        }
+    });
+    
+    // Update headings with data-lang attributes
+    const headings = document.querySelectorAll('h1[data-lang-tr], h2[data-lang-tr]');
+    headings.forEach(heading => {
+        const trText = heading.dataset.langTr;
+        const enText = heading.dataset.langEn;
+        if (trText && enText) {
+            heading.textContent = lang === 'tr' ? trText : enText;
+        }
+    });
+    
+    // Update links with data-lang attributes
+    const links = document.querySelectorAll('a[data-lang-tr]');
+    links.forEach(link => {
+        const trText = link.dataset.langTr;
+        const enText = link.dataset.langEn;
+        if (trText && enText) {
+            link.textContent = lang === 'tr' ? trText : enText;
+        }
+    });
+    
+    console.log('[LANG SWITCH EXIT]', { lang, finalButtonStates: Array.from(langButtons).map(b => ({ dataLang: b.dataset.lang, innerText: b.innerText, display: b.style.display })) });
+}
+
+/**
+ * Initializes language system
+ */
+function initLanguageSystem() {
+    console.log('[LANG INIT]', { langButtonsCount: langButtons.length, buttons: Array.from(langButtons).map((b, i) => ({ index: i, dataLang: b.dataset.lang, innerText: b.innerText, className: b.className })) });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:492',message:'initLanguageSystem called',data:{langButtonsCount:langButtons.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
+    
+    // Get language preference (saved or detected)
+    const currentLang = getLanguagePreference();
+    console.log('[LANG INIT RESTORE]', { currentLang, fromLocalStorage: localStorage.getItem('lang') });
+    
+    // Set initial language
+    switchLanguage(currentLang);
+    
+    // Add click handlers to language switcher buttons
+    langButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            console.log('[LANG BUTTON CLICK]', { clickedLang: button.dataset.lang, buttonInnerText: button.innerText });
+            const lang = button.dataset.lang;
+            if (lang === 'tr' || lang === 'en') {
+                switchLanguage(lang);
+            }
+        });
+    });
+}
+
+// ============================================
+// Section DOM Verification (debug)
+// ============================================
+
+function verifySections() {
+    const cvSections = document.querySelectorAll('.cv-section');
+    const expectedIds = ['about', 'experience', 'education', 'skills', 'projects', 'contact'];
+    const viewportW = window.innerWidth;
+    const expectedScrollWidth = 6 * viewportW;
+    const contentStats = Array.from(sectionContents).map((el, index) => {
+        const scrollHeight = el.scrollHeight;
+        const clientHeight = el.clientHeight;
+        const delta = scrollHeight - clientHeight;
+        const canScroll = scrollHeight > clientHeight + 2;
+        return { index, scrollHeight, clientHeight, delta, canScroll };
+    });
+    const overflowCount = contentStats.filter(s => s.canScroll).length;
+    
+    console.log('[SECTION CHECK]', {
+        totalSections: cvSections.length,
+        expectedCount: 6,
+        sectionsWrapperScrollWidth: sectionsWrapper?.scrollWidth,
+        windowInnerWidth: viewportW,
+        expectedScrollWidth,
+        scrollWidthMatch: sectionsWrapper?.scrollWidth === expectedScrollWidth
+    });
+    
+    cvSections.forEach((section, index) => {
+        const parent = section.parentElement;
+        const isDirectChildOfWrapper = parent?.classList?.contains('sections-wrapper');
+        const expectedId = expectedIds[index];
+        const idMatch = section.id === expectedId;
+        
+        console.log('[SECTION CHECK]', {
+            index,
+            id: section.id,
+            expectedId,
+            idMatch,
+            className: section.className,
+            parentClassName: parent?.className ?? 'null',
+            isDirectChildOfWrapper,
+            offsetLeft: section.offsetLeft,
+            expectedOffsetLeft: index * viewportW
+        });
+        
+        if (!idMatch) console.warn('[SECTION CHECK] Section missing or wrong order:', { index, expectedId, foundId: section.id });
+        if (!isDirectChildOfWrapper) console.warn('[SECTION CHECK] Section outside .sections-wrapper:', { index, id: section.id });
+    });
+    
+    if (cvSections.length !== 6) console.warn('[SECTION CHECK] Wrong section count:', cvSections.length, 'expected 6');
+    const offsetDeltas = [];
+    for (let i = 1; i < cvSections.length; i++) {
+        offsetDeltas.push(cvSections[i].offsetLeft - cvSections[i - 1].offsetLeft);
+    }
+    if (offsetDeltas.some(d => Math.abs(d - viewportW) > 50)) {
+        console.warn('[SECTION CHECK] offsetLeft not increasing by ~100vw:', offsetDeltas);
+    }
+}
+
+// ============================================
+// Initialize Everything
+// ============================================
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        verifySections();
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:516',message:'DOMContentLoaded fired',data:{readyState:document.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion
+        initLanguageSystem();
+        initScrollHandlers();
+    });
+} else {
+    verifySections();
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:524',message:'DOM already ready',data:{readyState:document.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+    // #endregion
+    initLanguageSystem();
+    initScrollHandlers();
+}
