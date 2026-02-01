@@ -1,0 +1,19 @@
+# v1 Interaction Freeze Rule (ALWAYS)
+
+v1 interaction logic is frozen.
+
+DO NOT:
+- Refactor or simplify scroll / wheel routing logic
+- Change navigation timing, cooldowns, or burst-gate behavior
+- Modify nav-mode (card ↔ section) state transitions
+
+Reason:
+Current complexity is intentional, evidence-backed, and validated
+against real trackpad momentum and rapid input.
+
+Allowed in v1:
+- Comments and documentation
+- TODO notes explicitly marked for v2
+- Non-interaction-related changes
+
+Any interaction behavior change belongs to v2 only.
