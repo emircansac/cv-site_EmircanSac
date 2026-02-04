@@ -20,7 +20,7 @@ function relocateSkillsSection() {
     const experienceContent = experienceSection?.querySelector('.section-content');
 
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:20',message:'relocate_skills_enter',data:{hasSkills:!!skillsSection,hasExperience:!!experienceSection,hasSkillsContent:!!skillsContent,hasExperienceContent:!!experienceContent},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:20',message:'relocate_skills_enter',data:{hasSkills:!!skillsSection,hasExperience:!!experienceSection,hasSkillsContent:!!skillsContent,hasExperienceContent:!!experienceContent},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
 
     if (!skillsSection || !experienceSection || !skillsContent || !experienceContent) {
@@ -41,7 +41,7 @@ function relocateSkillsSection() {
     skillsSection.style.scrollSnapStop = 'normal';
 
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:44',message:'relocate_skills_exit',data:{skillsWidth:skillsSection.offsetWidth,skillsOffsetLeft:skillsSection.offsetLeft},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:44',message:'relocate_skills_exit',data:{skillsWidth:skillsSection.offsetWidth,skillsOffsetLeft:skillsSection.offsetLeft},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
 }
 
@@ -67,7 +67,7 @@ allSections.forEach((section) => {
     }
 });
 // #region agent log
-fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:33',message:'snap_policy_applied',data:{navigableSectionIds,nonNavigableIds},timestamp:Date.now()})}).catch(()=>{});
+// fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:33',message:'snap_policy_applied',data:{navigableSectionIds,nonNavigableIds},timestamp:Date.now()})}).catch(()=>{});
 // #endregion
 
 const allNavButtons = Array.from(navButtons);
@@ -187,7 +187,7 @@ function returnToCardMode() {
  */
 function getCurrentSection() {
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:111',message:'getCurrentSection_enter',data:{isNavigating,targetSection,navigableCount:navigableSections.length,navigableSectionIds,scrollLeft:sectionsWrapper?.scrollLeft},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:111',message:'getCurrentSection_enter',data:{isNavigating,targetSection,navigableCount:navigableSections.length,navigableSectionIds,scrollLeft:sectionsWrapper?.scrollLeft},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
     // During navigation, use targetSection to avoid mid-animation calculation errors
     if (isNavigating) {
@@ -467,7 +467,7 @@ function navigateToNextSection() {
     const currentIndex = getCurrentSection();
     const nextIndex = Math.min(currentIndex + 1, navigableSections.length - 1);
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:346',message:'nav_next_indices',data:{currentIndex,nextIndex,navigableCount:navigableSections.length,navigableSectionIds},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:346',message:'nav_next_indices',data:{currentIndex,nextIndex,navigableCount:navigableSections.length,navigableSectionIds},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
     
     if (DEBUG_NAV) {
@@ -498,7 +498,7 @@ function navigateToPreviousSection() {
     const currentIndex = getCurrentSection();
     const prevIndex = Math.max(currentIndex - 1, 0);
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:374',message:'nav_prev_indices',data:{currentIndex,prevIndex,navigableCount:navigableSections.length,navigableSectionIds},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:374',message:'nav_prev_indices',data:{currentIndex,prevIndex,navigableCount:navigableSections.length,navigableSectionIds},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
     
     if (DEBUG_NAV) {
@@ -539,7 +539,7 @@ function scrollToSection(index) {
     const targetSectionEl = navigableSections[clampedIndex];
     const targetScrollLeft = targetSectionEl ? targetSectionEl.offsetLeft : clampedIndex * viewportWidth;
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:416',message:'scrollToSection_target',data:{index,clampedIndex,targetScrollLeft,viewportWidth,navigableCount:navigableSections.length,navigableSectionIds,targetSectionId:targetSectionEl?.id||null},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:416',message:'scrollToSection_target',data:{index,clampedIndex,targetScrollLeft,viewportWidth,navigableCount:navigableSections.length,navigableSectionIds,targetSectionId:targetSectionEl?.id||null},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
     
     if (DEBUG_NAV) {
@@ -728,11 +728,11 @@ function handleHorizontalScroll() {
     if (closestAllId && !navigableSectionIds.includes(closestAllId)) {
         const snapAlign = window.getComputedStyle(allSections[closestAllIndex]).getPropertyValue('scroll-snap-align');
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:588',message:'non_navigable_snap',data:{scrollLeft:Math.round(scrollLeft),closestAllId,closestAllIndex,closestNavId:navigableSections[closestNavIndex]?.id||null,snapAlign:snapAlign.trim()},timestamp:Date.now()})}).catch(()=>{});
+        // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:588',message:'non_navigable_snap',data:{scrollLeft:Math.round(scrollLeft),closestAllId,closestAllIndex,closestNavId:navigableSections[closestNavIndex]?.id||null,snapAlign:snapAlign.trim()},timestamp:Date.now()})}).catch(()=>{});
         // #endregion
     }
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H4',location:'main.js:572',message:'horizontal_scroll_state',data:{scrollLeft:Math.round(scrollLeft),closestAllIndex,closestAllId:allSections[closestAllIndex]?.id||null,closestNavIndex,closestNavId:navigableSections[closestNavIndex]?.id||null},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H4',location:'main.js:572',message:'horizontal_scroll_state',data:{scrollLeft:Math.round(scrollLeft),closestAllIndex,closestAllId:allSections[closestAllIndex]?.id||null,closestNavIndex,closestNavId:navigableSections[closestNavIndex]?.id||null},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
 
     updateActiveSection();
@@ -1159,13 +1159,13 @@ if (document.readyState === 'loading') {
         initNavCards();
         initScrollHandlers();
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:1118',message:'bg_snapshot_ready',data:{bodyBg:getComputedStyle(document.body).backgroundColor,cvContainerBg:document.querySelector('.cv-container')?getComputedStyle(document.querySelector('.cv-container')).backgroundColor:null,sectionsWrapperBg:document.querySelector('.sections-wrapper')?getComputedStyle(document.querySelector('.sections-wrapper')).backgroundColor:null,cvSectionBg:document.querySelector('.cv-section')?getComputedStyle(document.querySelector('.cv-section')).backgroundColor:null},timestamp:Date.now()})}).catch(()=>{});
+        // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:1118',message:'bg_snapshot_ready',data:{bodyBg:getComputedStyle(document.body).backgroundColor,cvContainerBg:document.querySelector('.cv-container')?getComputedStyle(document.querySelector('.cv-container')).backgroundColor:null,sectionsWrapperBg:document.querySelector('.sections-wrapper')?getComputedStyle(document.querySelector('.sections-wrapper')).backgroundColor:null,cvSectionBg:document.querySelector('.cv-section')?getComputedStyle(document.querySelector('.cv-section')).backgroundColor:null},timestamp:Date.now()})}).catch(()=>{});
         // #endregion
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:1119',message:'bg_overlays',data:{cvBeforeBg:getComputedStyle(document.querySelector('.cv-container'),'::before').backgroundColor,cvBeforeOpacity:getComputedStyle(document.querySelector('.cv-container'),'::before').opacity,navBackdropBg:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).backgroundColor:null,navBackdropOpacity:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).opacity:null},timestamp:Date.now()})}).catch(()=>{});
+        // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:1119',message:'bg_overlays',data:{cvBeforeBg:getComputedStyle(document.querySelector('.cv-container'),'::before').backgroundColor,cvBeforeOpacity:getComputedStyle(document.querySelector('.cv-container'),'::before').opacity,navBackdropBg:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).backgroundColor:null,navBackdropOpacity:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).opacity:null},timestamp:Date.now()})}).catch(()=>{});
         // #endregion
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:1120',message:'bg_role_vars',data:{roleBase:getComputedStyle(document.documentElement).getPropertyValue('--role-base').trim(),colorSecondary:getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim(),navModeCard:document.body.classList.contains('nav-mode-card'),navModeSection:document.body.classList.contains('nav-mode-section')},timestamp:Date.now()})}).catch(()=>{});
+        // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:1120',message:'bg_role_vars',data:{roleBase:getComputedStyle(document.documentElement).getPropertyValue('--role-base').trim(),colorSecondary:getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim(),navModeCard:document.body.classList.contains('nav-mode-card'),navModeSection:document.body.classList.contains('nav-mode-section')},timestamp:Date.now()})}).catch(()=>{});
         // #endregion
     });
 } else {
@@ -1176,12 +1176,12 @@ if (document.readyState === 'loading') {
     initNavCards();
     initScrollHandlers();
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:1130',message:'bg_snapshot_ready',data:{bodyBg:getComputedStyle(document.body).backgroundColor,cvContainerBg:document.querySelector('.cv-container')?getComputedStyle(document.querySelector('.cv-container')).backgroundColor:null,sectionsWrapperBg:document.querySelector('.sections-wrapper')?getComputedStyle(document.querySelector('.sections-wrapper')).backgroundColor:null,cvSectionBg:document.querySelector('.cv-section')?getComputedStyle(document.querySelector('.cv-section')).backgroundColor:null},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:1130',message:'bg_snapshot_ready',data:{bodyBg:getComputedStyle(document.body).backgroundColor,cvContainerBg:document.querySelector('.cv-container')?getComputedStyle(document.querySelector('.cv-container')).backgroundColor:null,sectionsWrapperBg:document.querySelector('.sections-wrapper')?getComputedStyle(document.querySelector('.sections-wrapper')).backgroundColor:null,cvSectionBg:document.querySelector('.cv-section')?getComputedStyle(document.querySelector('.cv-section')).backgroundColor:null},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:1131',message:'bg_overlays',data:{cvBeforeBg:getComputedStyle(document.querySelector('.cv-container'),'::before').backgroundColor,cvBeforeOpacity:getComputedStyle(document.querySelector('.cv-container'),'::before').opacity,navBackdropBg:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).backgroundColor:null,navBackdropOpacity:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).opacity:null},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:1131',message:'bg_overlays',data:{cvBeforeBg:getComputedStyle(document.querySelector('.cv-container'),'::before').backgroundColor,cvBeforeOpacity:getComputedStyle(document.querySelector('.cv-container'),'::before').opacity,navBackdropBg:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).backgroundColor:null,navBackdropOpacity:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).opacity:null},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:1132',message:'bg_role_vars',data:{roleBase:getComputedStyle(document.documentElement).getPropertyValue('--role-base').trim(),colorSecondary:getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim(),navModeCard:document.body.classList.contains('nav-mode-card'),navModeSection:document.body.classList.contains('nav-mode-section')},timestamp:Date.now()})}).catch(()=>{});
+    // fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:1132',message:'bg_role_vars',data:{roleBase:getComputedStyle(document.documentElement).getPropertyValue('--role-base').trim(),colorSecondary:getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim(),navModeCard:document.body.classList.contains('nav-mode-card'),navModeSection:document.body.classList.contains('nav-mode-section')},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
 }
