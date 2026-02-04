@@ -5,6 +5,7 @@
 // Get DOM elements
 const sectionsWrapper = document.querySelector('.sections-wrapper');
 const sections = document.querySelectorAll('.cv-section');
+const allSections = Array.from(sections);
 const sectionContents = document.querySelectorAll('.section-content');
 const navButtons = document.querySelectorAll('.nav-button');
 const langButtons = document.querySelectorAll('.lang-button');
@@ -12,11 +13,87 @@ let navCardContainer = null;
 let navCardItems = [];
 let navBackdrop = null;
 
+function relocateSkillsSection() {
+    const skillsSection = document.getElementById('skills');
+    const experienceSection = document.getElementById('experience');
+    const skillsContent = skillsSection?.querySelector('.section-content');
+    const experienceContent = experienceSection?.querySelector('.section-content');
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:20',message:'relocate_skills_enter',data:{hasSkills:!!skillsSection,hasExperience:!!experienceSection,hasSkillsContent:!!skillsContent,hasExperienceContent:!!experienceContent},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+
+    if (!skillsSection || !experienceSection || !skillsContent || !experienceContent) {
+        return;
+    }
+
+    while (skillsContent.firstChild) {
+        experienceContent.appendChild(skillsContent.firstChild);
+    }
+
+    skillsSection.style.width = '0';
+    skillsSection.style.minWidth = '0';
+    skillsSection.style.padding = '0';
+    skillsSection.style.border = '0';
+    skillsSection.style.overflow = 'hidden';
+    skillsSection.style.pointerEvents = 'none';
+    skillsSection.style.scrollSnapAlign = 'none';
+    skillsSection.style.scrollSnapStop = 'normal';
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:44',message:'relocate_skills_exit',data:{skillsWidth:skillsSection.offsetWidth,skillsOffsetLeft:skillsSection.offsetLeft},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+}
+
+// Navigable sections (explicit, order-safe)
+const NAVIGABLE_SECTION_IDS = ['about', 'experience', 'education', 'projects', 'contact'];
+const navigableSections = NAVIGABLE_SECTION_IDS
+    .map((id) => allSections.find((section) => section.id === id))
+    .filter(Boolean);
+const navigableSectionIds = navigableSections.map((section) => section.id);
+
+// Apply snap only to navigable sections
+const nonNavigableIds = [];
+allSections.forEach((section) => {
+    const isNavigable = navigableSectionIds.includes(section.id);
+    section.dataset.navigable = isNavigable ? 'true' : 'false';
+    if (isNavigable) {
+        section.style.scrollSnapAlign = 'start';
+        section.style.scrollSnapStop = 'always';
+    } else {
+        section.style.scrollSnapAlign = 'none';
+        section.style.scrollSnapStop = 'normal';
+        nonNavigableIds.push(section.id);
+    }
+});
+// #region agent log
+fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:33',message:'snap_policy_applied',data:{navigableSectionIds,nonNavigableIds},timestamp:Date.now()})}).catch(()=>{});
+// #endregion
+
+const allNavButtons = Array.from(navButtons);
+const navButtonBySectionId = new Map();
+allNavButtons.forEach((button, index) => {
+    const rawIndex = parseInt(button.dataset.section, 10);
+    const targetIndex = Number.isFinite(rawIndex) ? rawIndex : index;
+    const targetSection = allSections[targetIndex];
+    if (targetSection && NAVIGABLE_SECTION_IDS.includes(targetSection.id)) {
+        navButtonBySectionId.set(targetSection.id, button);
+    }
+});
+const navigableNavButtons = NAVIGABLE_SECTION_IDS
+    .map((id) => navButtonBySectionId.get(id))
+    .filter(Boolean);
+
 // Scroll state management
 let isNavigating = false; // Prevents navigation during scroll animation
 let navigationTimeout = null;
 let lastWheelTime = 0; // Timestamp of last wheel event that triggered navigation
 const WHEEL_COOLDOWN = 100; // Minimum ms between horizontal navigations (debounce fast scrolls)
+let wheelNavLockUntil = 0; // Prevents immediate re-nav after wheel-based scroll completion
+const POST_WHEEL_NAV_LOCK_MS = 250; // Brief lockout to absorb trackpad momentum
+let lastWheelEventTime = 0; // Timestamp of the last wheel event observed
+let wheelNavRequiresFreshBurst = false; // Require a new wheel burst after nav
+const WHEEL_BURST_GAP_MS = 120; // Gap to consider a new intentional wheel burst
 let targetSection = 0; // The section we're navigating to (used during animation)
 let navigationSource = null; // 'wheel' | 'nav' | null
 const DEBUG_NAV = true;
@@ -109,34 +186,40 @@ function returnToCardMode() {
  * @returns {number} Index of the active section (0-5)
  */
 function getCurrentSection() {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:111',message:'getCurrentSection_enter',data:{isNavigating,targetSection,navigableCount:navigableSections.length,navigableSectionIds,scrollLeft:sectionsWrapper?.scrollLeft},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     // During navigation, use targetSection to avoid mid-animation calculation errors
     if (isNavigating) {
         return targetSection;
     }
-    
+
+    if (!navigableSections.length) {
+        return 0;
+    }
+
     const scrollLeft = sectionsWrapper.scrollLeft;
-    const viewportWidth = window.innerWidth;
-    
-    // Calculate which section is currently in view
-    // Each section is 100vw wide, so we divide scroll position by viewport width
-    const rawIndex = scrollLeft / viewportWidth;
-    const sectionIndex = Math.round(rawIndex);
-    
-    const result = Math.max(0, Math.min(sectionIndex, sections.length - 1));
-    
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+
+    navigableSections.forEach((section, index) => {
+        const distance = Math.abs(section.offsetLeft - scrollLeft);
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestIndex = index;
+        }
+    });
+
     if (DEBUG_NAV) {
         console.log('[GET_CURRENT]', {
             scrollLeft: Math.round(scrollLeft),
-            viewportWidth,
-            rawIndex: rawIndex.toFixed(2),
-            rounded: sectionIndex,
-            result,
+            closestIndex,
+            closestDistance: Math.round(closestDistance),
             isNavigating
         });
     }
-    
-    // Clamp to valid range (0 to sections.length - 1)
-    return result;
+
+    return closestIndex;
 }
 
 /**
@@ -145,7 +228,11 @@ function getCurrentSection() {
  */
 function getCurrentSectionContent() {
     const currentIndex = getCurrentSection();
-    return sectionContents[currentIndex] || null;
+    const currentSection = navigableSections[currentIndex];
+    if (!currentSection) {
+        return null;
+    }
+    return currentSection.querySelector('.section-content');
 }
 
 // ============================================
@@ -163,6 +250,7 @@ function canScrollVertically(sectionContent) {
     }
     
     // Content can scroll only if there is real overflow (tolerance of 2px)
+    const delta = sectionContent.scrollHeight - sectionContent.clientHeight;
     const canScroll = sectionContent.scrollHeight > sectionContent.clientHeight + 2;
     return canScroll;
 }
@@ -198,6 +286,9 @@ function isAtBottom(sectionContent) {
  * @param {WheelEvent} event - The wheel event
  */
 function handleWheelEvent(event) {
+    const wheelNow = Date.now();
+    const wheelDeltaSinceLast = lastWheelEventTime ? (wheelNow - lastWheelEventTime) : Number.POSITIVE_INFINITY;
+    lastWheelEventTime = wheelNow;
     if (DEBUG_NAV) {
         console.log('[SCROLL ENTER]', { 
             target: event.target.className || event.target.tagName, 
@@ -271,6 +362,14 @@ function handleWheelEvent(event) {
                 event.preventDefault();
                 return;
             }
+            if (wheelNavRequiresFreshBurst && wheelDeltaSinceLast < WHEEL_BURST_GAP_MS) {
+                event.preventDefault();
+                return;
+            }
+            if (Date.now() < wheelNavLockUntil) {
+                event.preventDefault();
+                return;
+            }
             // Check cooldown
             const now = Date.now();
             if (now - lastWheelTime < WHEEL_COOLDOWN) {
@@ -286,6 +385,14 @@ function handleWheelEvent(event) {
             navigateToPreviousSection();
             event.preventDefault();
         } else if (isScrollingDown && atBottom) {
+            if (wheelNavRequiresFreshBurst && wheelDeltaSinceLast < WHEEL_BURST_GAP_MS) {
+                event.preventDefault();
+                return;
+            }
+            if (Date.now() < wheelNavLockUntil) {
+                event.preventDefault();
+                return;
+            }
             // Check cooldown
             const now = Date.now();
             if (now - lastWheelTime < WHEEL_COOLDOWN) {
@@ -306,6 +413,14 @@ function handleWheelEvent(event) {
             return;
         }
     } else {
+        if (wheelNavRequiresFreshBurst && wheelDeltaSinceLast < WHEEL_BURST_GAP_MS) {
+            event.preventDefault();
+            return;
+        }
+        if (Date.now() < wheelNavLockUntil) {
+            event.preventDefault();
+            return;
+        }
         // Check cooldown
         const now = Date.now();
         if (now - lastWheelTime < WHEEL_COOLDOWN) {
@@ -350,7 +465,10 @@ function navigateToNextSection() {
     }
     
     const currentIndex = getCurrentSection();
-    const nextIndex = Math.min(currentIndex + 1, sections.length - 1);
+    const nextIndex = Math.min(currentIndex + 1, navigableSections.length - 1);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:346',message:'nav_next_indices',data:{currentIndex,nextIndex,navigableCount:navigableSections.length,navigableSectionIds},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     
     if (DEBUG_NAV) {
         console.log('[NAV NEXT]', {
@@ -379,6 +497,9 @@ function navigateToPreviousSection() {
     
     const currentIndex = getCurrentSection();
     const prevIndex = Math.max(currentIndex - 1, 0);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:374',message:'nav_prev_indices',data:{currentIndex,prevIndex,navigableCount:navigableSections.length,navigableSectionIds},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     
     if (DEBUG_NAV) {
         console.log('[NAV PREV]', {
@@ -414,7 +535,12 @@ function scrollToSection(index) {
     }
     
     const viewportWidth = window.innerWidth;
-    const targetScrollLeft = index * viewportWidth;
+    const clampedIndex = Math.max(0, Math.min(index, navigableSections.length - 1));
+    const targetSectionEl = navigableSections[clampedIndex];
+    const targetScrollLeft = targetSectionEl ? targetSectionEl.offsetLeft : clampedIndex * viewportWidth;
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:416',message:'scrollToSection_target',data:{index,clampedIndex,targetScrollLeft,viewportWidth,navigableCount:navigableSections.length,navigableSectionIds,targetSectionId:targetSectionEl?.id||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     
     if (DEBUG_NAV) {
         console.log('[SCROLLTO]', {
@@ -428,7 +554,7 @@ function scrollToSection(index) {
     
     // Set navigation lock
     isNavigating = true;
-    targetSection = index;
+    targetSection = clampedIndex;
     
     // Clear any existing timeout
     if (navigationTimeout) {
@@ -446,9 +572,10 @@ function scrollToSection(index) {
     
     // Release lock after animation completes
     navigationTimeout = setTimeout(() => {
+        const wasWheel = navigationSource === 'wheel';
         isNavigating = false;
         navigationSource = null;
-        targetSection = index;
+        targetSection = clampedIndex;
         
         if (DEBUG_NAV) {
             console.log('[SCROLLTO COMPLETE]', {
@@ -457,6 +584,10 @@ function scrollToSection(index) {
                 targetSection,
                 success: Math.abs(sectionsWrapper.scrollLeft - targetScrollLeft) < 10
             });
+        }
+        if (wasWheel) {
+            wheelNavLockUntil = Date.now() + POST_WHEEL_NAV_LOCK_MS;
+            wheelNavRequiresFreshBurst = true;
         }
     }, animationDuration);
 }
@@ -471,7 +602,7 @@ function scrollToSection(index) {
 function updateActiveSection() {
     const currentIndex = getCurrentSection();
     
-    navButtons.forEach((button, index) => {
+    navigableNavButtons.forEach((button, index) => {
         if (index === currentIndex) {
             button.classList.add('active');
         } else {
@@ -574,7 +705,36 @@ function handleHorizontalScroll() {
     if (isMobile()) {
         return;
     }
-    
+    const scrollLeft = sectionsWrapper.scrollLeft;
+    let closestAllIndex = 0;
+    let closestAllDistance = Infinity;
+    allSections.forEach((section, index) => {
+        const distance = Math.abs(section.offsetLeft - scrollLeft);
+        if (distance < closestAllDistance) {
+            closestAllDistance = distance;
+            closestAllIndex = index;
+        }
+    });
+    let closestNavIndex = 0;
+    let closestNavDistance = Infinity;
+    navigableSections.forEach((section, index) => {
+        const distance = Math.abs(section.offsetLeft - scrollLeft);
+        if (distance < closestNavDistance) {
+            closestNavDistance = distance;
+            closestNavIndex = index;
+        }
+    });
+    const closestAllId = allSections[closestAllIndex]?.id || null;
+    if (closestAllId && !navigableSectionIds.includes(closestAllId)) {
+        const snapAlign = window.getComputedStyle(allSections[closestAllIndex]).getPropertyValue('scroll-snap-align');
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:588',message:'non_navigable_snap',data:{scrollLeft:Math.round(scrollLeft),closestAllId,closestAllIndex,closestNavId:navigableSections[closestNavIndex]?.id||null,snapAlign:snapAlign.trim()},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H4',location:'main.js:572',message:'horizontal_scroll_state',data:{scrollLeft:Math.round(scrollLeft),closestAllIndex,closestAllId:allSections[closestAllIndex]?.id||null,closestNavIndex,closestNavId:navigableSections[closestNavIndex]?.id||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+
     updateActiveSection();
     
     // Show scroll hint for new section if at top
@@ -607,14 +767,18 @@ function initScrollHandlers() {
         updateActiveSection();
         
         // Add click handlers to navigation buttons
-        navButtons.forEach((button, index) => {
+        navigableNavButtons.forEach((button, index) => {
             button.addEventListener('click', () => {
                 if (isNavigating) {
                     if (DEBUG_NAV) console.log('[NAV CLICK] Blocked: already navigating');
                     return;
                 }
                 
-                const targetSectionIndex = parseInt(button.dataset.section) || index;
+                const targetSectionId = NAVIGABLE_SECTION_IDS[index];
+                const targetSectionIndex = navigableSections.findIndex((section) => section.id === targetSectionId);
+                if (targetSectionIndex === -1) {
+                    return;
+                }
                 
                 if (DEBUG_NAV) {
                     console.log('[NAV CLICK]', {
@@ -663,12 +827,27 @@ function initNavCards() {
         return;
     }
 
-    const summariesBySection = {
-        0: 'Short intro and profile summary.',
-        1: 'Roles, companies, and achievements.',
-        2: 'Schools, degrees, and courses.',
-        3: 'Selected projects and highlights.',
-        4: 'Contact details and links.'
+    const cardData = {
+        0: {
+            tr: { label: 'Profil', title: 'Hakkımda', summary: ' Kariyerim sivil toplum, gazetecilik ve akademinin kesişiminde şekillendi. Proje geliştirme, araştırma ve editoryal üretim odağında çalışıyorum.', affordance: '↓ kaydırarak keşfedin' },
+            en: { label: 'Profile', title: 'About', summary: 'My career has been shaped at the intersection of civil society, journalism, and academia. I work through project development, research, and writing.', affordance: '↓ scroll to explore' }
+        },
+        1: {
+            tr: { label: 'Kariyer', title: 'Deneyim', summary: 'Sivil toplumda araştırma koordinasyonu ve proje yönetimi süreçlerini üstlendim. Bilgi düzensizliği, medya okuryazarlığı ve nefret söylemi alanlarına odaklanıyorum.', affordance: '↓ kaydırarak keşfedin' },
+            en: { label: 'Career', title: 'Experience', summary: 'Project development, research coordination, editorial work in civil society. Information disorder, media literacy, hate speech monitoring.', affordance: '↓ scroll to explore' }
+        },
+        2: {
+            tr: { label: 'Eğitim', title: 'Eğitim', summary: 'Siyaset bilimi ve Türkiye çalışmaları üzerine eğitim aldım. Teknoloji ve toplum ilişkisini, teori ve pratiği birleştirerek ele alıyorum.', affordance: '↓ kaydırarak keşfedin' },
+            en: { label: 'Education', title: 'Education', summary: 'Political science, Turkish studies, design–technology–society. Bringing theory into practice.', affordance: '↓ scroll to explore' }
+        },
+        4: {
+            tr: { label: 'Projeler', title: 'Projeler', summary: 'Bilgi düzensizliği, medya okuryazarlığı ve iklim dezenformasyonu alanlarında yürüttüğüm seçili projeler.', affordance: '↓ kaydırarak keşfedin' },
+            en: { label: 'Work', title: 'Projects', summary: 'Information disorder, media literacy, climate disinformation. Methodologies, roles, outcomes.', affordance: '↓ scroll to explore' }
+        },
+        5: {
+            tr: { label: 'İletişim', title: 'İletişim', summary: 'Yeni projeler ve işbirliklerine açığım.', affordance: '↓ kaydırarak keşfedin' },
+            en: { label: 'Reach', title: 'Contact', summary: 'Open to new projects and collaborations.', affordance: '↓ scroll to explore' }
+        }
     };
 
     navBackdrop = document.createElement('div');
@@ -677,23 +856,63 @@ function initNavCards() {
     navCardContainer = document.createElement('div');
     navCardContainer.className = 'nav-card-container';
 
-    navButtons.forEach((button, index) => {
+    navigableNavButtons.forEach((button, index) => {
+        const targetSectionId = NAVIGABLE_SECTION_IDS[index];
+        const targetIndex = navigableSections.findIndex((section) => section.id === targetSectionId);
+        const sectionNum = button.dataset.section || index.toString();
+        const data = cardData[sectionNum];
+        
+        if (!data) return;
+
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'nav-card-item';
-        card.dataset.section = button.dataset.section || index.toString();
+        card.dataset.section = sectionNum;
+        card.dataset.navIndex = targetIndex.toString();
         card.setAttribute('aria-label', button.getAttribute('aria-label') || button.textContent);
 
-        const title = document.createElement('span');
-        title.className = 'nav-card-title';
-        title.textContent = button.textContent;
+        // Turkish container
+        const containerTr = document.createElement('div');
+        containerTr.dataset.lang = 'tr';
+        
+        const titleTr = document.createElement('span');
+        titleTr.className = 'nav-card-title';
+        titleTr.textContent = data.tr.title;
+        
+        const summaryTr = document.createElement('span');
+        summaryTr.className = 'nav-card-summary';
+        summaryTr.textContent = data.tr.summary;
+        
+        const affordanceTr = document.createElement('span');
+        affordanceTr.className = 'nav-card-affordance';
+        affordanceTr.textContent = data.tr.affordance;
+        
+        containerTr.appendChild(titleTr);
+        containerTr.appendChild(summaryTr);
+        containerTr.appendChild(affordanceTr);
 
-        const summary = document.createElement('span');
-        summary.className = 'nav-card-summary';
-        summary.textContent = summariesBySection[index] || '';
+        // English container
+        const containerEn = document.createElement('div');
+        containerEn.dataset.lang = 'en';
+        
+        const titleEn = document.createElement('span');
+        titleEn.className = 'nav-card-title';
+        titleEn.textContent = data.en.title;
+        
+        const summaryEn = document.createElement('span');
+        summaryEn.className = 'nav-card-summary';
+        summaryEn.textContent = data.en.summary;
+        
+        const affordanceEn = document.createElement('span');
+        affordanceEn.className = 'nav-card-affordance';
+        affordanceEn.textContent = data.en.affordance;
+        
+        containerEn.appendChild(titleEn);
+        containerEn.appendChild(summaryEn);
+        containerEn.appendChild(affordanceEn);
 
-        card.appendChild(title);
-        card.appendChild(summary);
+        card.appendChild(containerTr);
+        card.appendChild(containerEn);
 
         card.addEventListener('mouseenter', () => {
             card.classList.add('is-hovered');
@@ -705,7 +924,10 @@ function initNavCards() {
             if (isNavigating) {
                 return;
             }
-            const targetSectionIndex = parseInt(card.dataset.section, 10) || index;
+            const targetSectionIndex = parseInt(card.dataset.navIndex, 10);
+            if (!Number.isFinite(targetSectionIndex)) {
+                return;
+            }
             navigationSource = 'nav';
             if (navMode === 'card') {
                 enterSectionMode(targetSectionIndex);
@@ -815,17 +1037,6 @@ function switchLanguage(lang) {
             button.textContent = lang === 'tr' ? trText : enText;
         }
     });
-
-    if (navCardItems.length) {
-        navCardItems.forEach((card, index) => {
-            const sourceButton = navButtons[index];
-            if (!sourceButton) return;
-            const title = card.querySelector('.nav-card-title');
-            if (title) {
-                title.textContent = sourceButton.textContent;
-            }
-        });
-    }
     
     // Update headings with data-lang attributes
     const headings = document.querySelectorAll('h1[data-lang-tr], h2[data-lang-tr]');
@@ -941,16 +1152,36 @@ function verifySections() {
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+        relocateSkillsSection();
         verifySections();
         initLanguageSystem();
         initNavMode();
         initNavCards();
         initScrollHandlers();
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:1118',message:'bg_snapshot_ready',data:{bodyBg:getComputedStyle(document.body).backgroundColor,cvContainerBg:document.querySelector('.cv-container')?getComputedStyle(document.querySelector('.cv-container')).backgroundColor:null,sectionsWrapperBg:document.querySelector('.sections-wrapper')?getComputedStyle(document.querySelector('.sections-wrapper')).backgroundColor:null,cvSectionBg:document.querySelector('.cv-section')?getComputedStyle(document.querySelector('.cv-section')).backgroundColor:null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:1119',message:'bg_overlays',data:{cvBeforeBg:getComputedStyle(document.querySelector('.cv-container'),'::before').backgroundColor,cvBeforeOpacity:getComputedStyle(document.querySelector('.cv-container'),'::before').opacity,navBackdropBg:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).backgroundColor:null,navBackdropOpacity:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).opacity:null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:1120',message:'bg_role_vars',data:{roleBase:getComputedStyle(document.documentElement).getPropertyValue('--role-base').trim(),colorSecondary:getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim(),navModeCard:document.body.classList.contains('nav-mode-card'),navModeSection:document.body.classList.contains('nav-mode-section')},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
     });
 } else {
+    relocateSkillsSection();
     verifySections();
     initLanguageSystem();
     initNavMode();
     initNavCards();
     initScrollHandlers();
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H1',location:'main.js:1130',message:'bg_snapshot_ready',data:{bodyBg:getComputedStyle(document.body).backgroundColor,cvContainerBg:document.querySelector('.cv-container')?getComputedStyle(document.querySelector('.cv-container')).backgroundColor:null,sectionsWrapperBg:document.querySelector('.sections-wrapper')?getComputedStyle(document.querySelector('.sections-wrapper')).backgroundColor:null,cvSectionBg:document.querySelector('.cv-section')?getComputedStyle(document.querySelector('.cv-section')).backgroundColor:null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H2',location:'main.js:1131',message:'bg_overlays',data:{cvBeforeBg:getComputedStyle(document.querySelector('.cv-container'),'::before').backgroundColor,cvBeforeOpacity:getComputedStyle(document.querySelector('.cv-container'),'::before').opacity,navBackdropBg:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).backgroundColor:null,navBackdropOpacity:document.querySelector('.nav-backdrop')?getComputedStyle(document.querySelector('.nav-backdrop')).opacity:null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/b7967069-ff3f-4945-b82f-94c4d5d7fcfe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'run1',hypothesisId:'H3',location:'main.js:1132',message:'bg_role_vars',data:{roleBase:getComputedStyle(document.documentElement).getPropertyValue('--role-base').trim(),colorSecondary:getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim(),navModeCard:document.body.classList.contains('nav-mode-card'),navModeSection:document.body.classList.contains('nav-mode-section')},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 }
